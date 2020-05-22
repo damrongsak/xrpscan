@@ -12,7 +12,8 @@ df_acc = df_account[['name', 'account', 'desc', 'XRP']
                     ].loc[df_account['name'] == 'Bittrex'].copy(deep=True)
 df_acc['id'] = df_acc['account']
 df_acc['label'] = df_acc['name'] + \
-    '(' + df_acc['desc'] + ') XRP: ' + df_acc['XRP'].astype(str)
+    '(' + df_acc['desc'] + ')'
+df_acc['label'] = df_acc['label'].apply(lambda x: str(x).replace('()',''))
 df_acc[['id', 'label']]
 
 # Parrent Node
@@ -77,151 +78,152 @@ def xrpnet(ACCOUNT_ADDRESS):
     df_flow_in, df_flow_out = get_flow_in_out(ACCOUNT_ADDRESS)
 
     # Flow IN Nodes
-    df_in = df_flow_in.reset_index(
-    )[['From', 'From Desc', 'To', 'To Desc', 'DT', 'count', 'sum']]
+    if df_flow_in.empty == False:
+        df_in = df_flow_in.reset_index(
+        )[['From', 'From Desc', 'To', 'To Desc', 'DT', 'count', 'sum']]
 
-    df_in['id'] = df_in['From'] + '-' + df_in['DT'].astype(str)
-    df_in['label'] = ' To: ' + df_in['To Desc'] + \
-        ' DT: ' + df_in['DT'].astype(str)
+        df_in['id'] = df_in['From'] + '-' + df_in['DT'].astype(str)
+        df_in['label'] = ' To: ' + df_in['To Desc'] + \
+            ' DT: ' + df_in['DT'].astype(str)
 
-    df_in['From Already'] = df_in['From'].apply(lambda x: find_account(x))
-    df_in['Tag Already'] = df_in['id'].apply(lambda x: find_account(x))
-    df_in['Dest Already'] = df_in['To'].apply(lambda x: find_account(x))
+        df_in['From Already'] = df_in['From'].apply(lambda x: find_account(x))
+        df_in['Tag Already'] = df_in['id'].apply(lambda x: find_account(x))
+        df_in['Dest Already'] = df_in['To'].apply(lambda x: find_account(x))
 
-    df_inx = df_in.loc[df_in['From Already'] == False]
-    df_inx = df_inx[['From', 'From Desc']].rename(
-        columns={'From': 'id', 'From Desc': 'label'})
-    df_inx.drop_duplicates(subset="id", keep='first', inplace=True)
-    if df_inx.empty == False:
-        for index, row in df_inx[['id', 'label']].iterrows():
-            nodes.append(dict(row))
+        df_inx = df_in.loc[df_in['From Already'] == False]
+        df_inx = df_inx[['From', 'From Desc']].rename(
+            columns={'From': 'id', 'From Desc': 'label'})
+        df_inx.drop_duplicates(subset="id", keep='first', inplace=True)
+        if df_inx.empty == False:
+            for index, row in df_inx[['id', 'label']].iterrows():
+                nodes.append(dict(row))
 
-    df_inx = df_in[['id', 'label']].loc[df_in['Tag Already'] == False]
-    if df_inx.empty == False:
-        for index, row in df_inx[['id', 'label']].iterrows():
-            nodes.append(dict(row))
+        df_inx = df_in[['id', 'label']].loc[df_in['Tag Already'] == False]
+        if df_inx.empty == False:
+            for index, row in df_inx[['id', 'label']].iterrows():
+                nodes.append(dict(row))
 
-    df_inx = df_in.loc[df_in['Dest Already'] == False]
-    df_inx = df_inx[['To', 'To Desc']].rename(
-        columns={'To': 'id', 'To Desc': 'label'})
-    df_inx.drop_duplicates(subset="id", keep='first', inplace=True)
-    if df_inx.empty == False:
-        for index, row in df_inx[['id', 'label']].iterrows():
-            nodes.append(dict(row))
+        df_inx = df_in.loc[df_in['Dest Already'] == False]
+        df_inx = df_inx[['To', 'To Desc']].rename(
+            columns={'To': 'id', 'To Desc': 'label'})
+        df_inx.drop_duplicates(subset="id", keep='first', inplace=True)
+        if df_inx.empty == False:
+            for index, row in df_inx[['id', 'label']].iterrows():
+                nodes.append(dict(row))
 
-    # From to DT
-    for _, row in df_in.iterrows():
-        edges.append(
-            {
-                "from": str(row['From']),
-                "to": '{}-{}'.format(row['From'], str(row['DT'])),
-                "label": row['To Desc'] + ' DT:' + str(row['DT']),
-                "color": {
-                    "color": "green",
-                    "highlight": "green"
-                },
-                "arrows": {
-                    "from": {
-                        "scaleFactor": "0.5",
-                        "type": "circle"
+        # From to DT
+        for _, row in df_in.iterrows():
+            edges.append(
+                {
+                    "from": str(row['From']),
+                    "to": '{}-{}'.format(row['From'], str(row['DT'])),
+                    "label": row['To Desc'] + ' DT:' + str(row['DT']),
+                    "color": {
+                        "color": "green",
+                        "highlight": "green"
+                    },
+                    "arrows": {
+                        "from": {
+                            "scaleFactor": "0.5",
+                            "type": "circle"
+                        }
                     }
                 }
-            }
-        )
+            )
 
-    # DT to Dest
-    for _, row in df_in.iterrows():
-        edges.append(
-            {
-                "from": '{}-{}'.format(row['From'], str(row['DT'])),
-                "to": str(row['To']),
-                "label": 'XRP:' + str(row['sum']),
-                "color": {
-                    "color": "green",
-                    "highlight": "green"
-                },
-                "arrows": {
-                    "from": {
-                        "scaleFactor": "0.5",
-                        "type": "circle"
+        # DT to Dest
+        for _, row in df_in.iterrows():
+            edges.append(
+                {
+                    "from": '{}-{}'.format(row['From'], str(row['DT'])),
+                    "to": str(row['To']),
+                    "label": 'XRP:' + str(row['sum']),
+                    "color": {
+                        "color": "green",
+                        "highlight": "green"
+                    },
+                    "arrows": {
+                        "from": {
+                            "scaleFactor": "0.5",
+                            "type": "circle"
+                        }
                     }
                 }
-            }
-        )
+            )
 
     # Flow OUT Nodes
+    if df_flow_out.empty == False:
+        df_out = df_flow_out.reset_index(
+        )[['From', 'From Desc', 'To', 'To Desc', 'DT', 'count', 'sum']].head(10)
 
-    df_out = df_flow_out.reset_index(
-    )[['From', 'From Desc', 'To', 'To Desc', 'DT', 'count', 'sum']].head(10)
+        df_out['id'] = df_out['To'] + '-' + df_out['DT'].astype(str)
+        df_out['label'] = ' To: ' + df_out['To Desc'] + \
+            ' DT: ' + df_out['DT'].astype(str)
 
-    df_out['id'] = df_out['To'] + '-' + df_out['DT'].astype(str)
-    df_out['label'] = ' To: ' + df_out['To Desc'] + \
-        ' DT: ' + df_out['DT'].astype(str)
+        df_out['From Already'] = df_out['From'].apply(lambda x: find_account(x))
+        df_out['Tag Already'] = df_out['id'].apply(lambda x: find_account(x))
+        df_out['Dest Already'] = df_out['To'].apply(lambda x: find_account(x))
 
-    df_out['From Already'] = df_out['From'].apply(lambda x: find_account(x))
-    df_out['Tag Already'] = df_out['id'].apply(lambda x: find_account(x))
-    df_out['Dest Already'] = df_out['To'].apply(lambda x: find_account(x))
+        df_outx = df_out.loc[df_out['From Already'] == False]
+        df_outx = df_outx[['From', 'From Desc']].rename(
+            columns={'From': 'id', 'From Desc': 'label'})
+        df_outx.drop_duplicates(subset="id", keep='first', inplace=True)
+        if df_outx.empty == False:
+            for index, row in df_outx[['id', 'label']].iterrows():
+                nodes.append(dict(row))
 
-    df_outx = df_out.loc[df_out['From Already'] == False]
-    df_outx = df_outx[['From', 'From Desc']].rename(
-        columns={'From': 'id', 'From Desc': 'label'})
-    df_outx.drop_duplicates(subset="id", keep='first', inplace=True)
-    if df_outx.empty == False:
-        for index, row in df_outx[['id', 'label']].iterrows():
-            nodes.append(dict(row))
+        df_outx = df_out[['id', 'label']].loc[df_out['Tag Already'] == False]
+        if df_outx.empty == False:
+            for index, row in df_outx[['id', 'label']].iterrows():
+                nodes.append(dict(row))
 
-    df_outx = df_out[['id', 'label']].loc[df_out['Tag Already'] == False]
-    if df_outx.empty == False:
-        for index, row in df_outx[['id', 'label']].iterrows():
-            nodes.append(dict(row))
+        df_outx = df_out.loc[df_in['Dest Already'] == False]
+        df_outx = df_outx[['To', 'To Desc']].rename(
+            columns={'To': 'id', 'To Desc': 'label'})
+        df_outx.drop_duplicates(subset="id", keep='first', inplace=True)
+        if df_outx.empty == False:
+            for index, row in df_outx[['id', 'label']].iterrows():
+                nodes.append(dict(row))
 
-    df_outx = df_out.loc[df_in['Dest Already'] == False]
-    df_outx = df_outx[['To', 'To Desc']].rename(
-        columns={'To': 'id', 'To Desc': 'label'})
-    df_outx.drop_duplicates(subset="id", keep='first', inplace=True)
-    if df_outx.empty == False:
-        for index, row in df_outx[['id', 'label']].iterrows():
-            nodes.append(dict(row))
-
-    # From to DT
-    for _, row in df_out.iterrows():
-        edges.append(
-            {
-                "from": str(row['From']),
-                "to": '{}-{}'.format(row['To'], str(row['DT'])),
-                "label": row['To Desc'] + ' DT:' + str(row['DT']),
-                "color": {
-                    "color": "red",
-                    "highlight": "red"
-                },
-                "arrows": {
-                    "from": {
-                        "scaleFactor": "0.5",
-                        "type": "circle"
+        # From to DT
+        for _, row in df_out.iterrows():
+            edges.append(
+                {
+                    "from": str(row['From']),
+                    "to": '{}-{}'.format(row['To'], str(row['DT'])),
+                    "label": row['To Desc'] + ' DT:' + str(row['DT']),
+                    "color": {
+                        "color": "red",
+                        "highlight": "red"
+                    },
+                    "arrows": {
+                        "from": {
+                            "scaleFactor": "0.5",
+                            "type": "circle"
+                        }
                     }
                 }
-            }
-        )
+            )
 
-    # DT to Dest
-    for _, row in df_out.iterrows():
-        edges.append(
-            {
-                "from": '{}-{}'.format(row['To'], str(row['DT'])),
-                "to": str(row['To']),
-                "label": 'XRP:' + str(row['sum']),
-                "color": {
-                    "color": "red",
-                    "highlight": "red"
-                },
-                "arrows": {
-                    "from": {
-                        "scaleFactor": "0.5",
-                        "type": "circle"
+        # DT to Dest
+        for _, row in df_out.iterrows():
+            edges.append(
+                {
+                    "from": '{}-{}'.format(row['To'], str(row['DT'])),
+                    "to": str(row['To']),
+                    "label": 'XRP:' + str(row['sum']),
+                    "color": {
+                        "color": "red",
+                        "highlight": "red"
+                    },
+                    "arrows": {
+                        "from": {
+                            "scaleFactor": "0.5",
+                            "type": "circle"
+                        }
                     }
                 }
-            }
-        )
+            )
 
     result = {
         'nodes': nodes,
